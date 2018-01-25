@@ -96,8 +96,11 @@ class CourseCrawler:
         for tr in tr_list:
             td_list = tr.select("td")
             span = td_list[2].select("span")[0]
+            # a_href = td_list[2].select("a")[0]["href"]
+
             course_code = span.text.strip("★")
-            course_id = re.match("courseCode_([0-9]+)", span['id']).group(1)
+            # course_id = re.match("/course/courseplan/([0-9]+)", a_href).group(1)
+            course_id = re.match("courseCode_([a-zA-Z0-9]+)", span['id']).group(1)
             # print("%s %s" % (course_code, course_id))
             course_map[course_code] = course_id
         return course_map
@@ -268,13 +271,13 @@ class CourseCrawler:
             t.join()
 
 if __name__ == "__main__":
-    # courses_crawler = CourseCrawler("wychengpublic@163.com", "450331199402040036")
-    # # 先进入选课系统app
-    # courses_crawler.app_select()
-    # courses_crawler.select_courses_conf(interval=0.5)
+    courses_crawler = CourseCrawler("wychengpublic@163.com", "450331199402040036")
+    # 先进入选课系统app
+    courses_crawler.app_select()
+    courses_crawler.select_courses_conf(interval=0.5)
 
-    db = CoursesDB()
-    db.get_courses_visited(u"王雨城")
+    # db = CoursesDB()
+    # db.get_courses_visited(u"王雨城")
 
 
 
