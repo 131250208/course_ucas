@@ -1,9 +1,11 @@
 import pymysql
 import json
+from course import settings
+
 class CoursesDB:
     def __init__(self):
         # 打开数据库连接
-        self.db = pymysql.connect("localhost", "root", "Database6981228.", "course_ucas")
+        self.db = pymysql.connect(settings.DB_HOST, settings.DB_USER, settings.DB_PW, settings.DB_NAME)
         self.db.set_charset("utf8")
         cursor = self.db.cursor()
         cursor.execute('SET NAMES utf8;')

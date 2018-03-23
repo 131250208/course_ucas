@@ -18,8 +18,8 @@ class CourseCrawler:
             "sb": "sb",
         }
         self.session = requests.session()
-        self.session.post(login_url, data=payload_login)
-
+        res = self.session.post(login_url, data=payload_login)
+        print(res)
         self.school_map = {'数学学院': '910', '物理学院': '911', '天文学院': '957', '化学学院': '912', '材料学院': '928', '生命学院': '913', '地球学院': '914', '资环学院': '921', '计算机学院': '951', '电子学院': '952', '工程学院': '958', '经管学院': '917', '公共管理学院': '945', '人文学院': '927', '马克思中心': '964', '外语系': '915', '中丹学院': '954', '国际学院': '955', '存济医学院': '959', '体育教研室': '946', '微电子学院': '961', '未来技术学院': '962', '网络空间安全学院': '963', '心理学系': '968', '人工智能学院': '969', '纳米科学与技术学院': '970', '艺术中心': '971', '光电学院': '972', '创新创业学院': '967', }
 
     # 跳转进入选课系统
@@ -75,8 +75,31 @@ class CourseCrawler:
             td_list = tr.select("td")
             span = td_list[2].select("span")[0]
             course_code = span.text
-            course_id = re.match("courseCode_([0-9]+)", span['id']).group(1)
+            coursetime_href = td_list[3].select("a")[0]["href"]
+            course_id = coursetime_href.split("/")[-1]
             course_name = td_list[3].text
+            time, location, weeks = self.get_course_time(course_id)
+            print("%s %s %s %s %s %s" % (course_code, course_id, course_name, time, location, weeks))
+            course_list.append({"course_code": course_code, "course_id": course_id, "course_name": course_name, "time": time, "location": location, "weeks": weeks})
+        return course_list
+
+    # 已选择的课程不会出现在院系的选课界面，所以要另外爬取
+    def get_courses_selected(self):
+        courses_url = "http://jwxk.ucas.ac.cn/courseManage/main"
+        res = self.session.get(courses_url)
+        soup = BeautifulSoup(res.text, "lxml")
+
+        div = soup.select("div.mc-body")[-1]
+        tr_list = div.select("table > tbody > tr")
+
+        course_list = []
+        for tr in tr_list:
+            td_list = tr.select("td")
+            course_code = td_list[0].select("a")[0].text
+
+            coursetime_href = td_list[1].select("a")[0]["href"]
+            course_id = coursetime_href.split("/")[-1]
+            course_name = td_list[1].text
             time, location, weeks = self.get_course_time(course_id)
             print("%s %s %s %s %s %s" % (course_code, course_id, course_name, time, location, weeks))
             course_list.append({"course_code": course_code, "course_id": course_id, "course_name": course_name, "time": time, "location": location, "weeks": weeks})
@@ -164,9 +187,21 @@ class CourseCrawler:
         self.app_select()
 
         course_list = self.get_courses(school_id)
+
         db = CoursesDB()
         for c in course_list:
             db.insert_course(c["course_name"], c["course_id"], c["course_code"], season, c["time"], c["location"], c["weeks"], school_name, school_id)
+        db.close()
+
+    def crawl_save_courses_selected(self, season):
+        self.app_select()
+
+        course_list = self.get_courses_selected()
+
+        db = CoursesDB()
+        for c in course_list:
+            db.insert_course(c["course_name"], c["course_id"], c["course_code"], season, c["time"], c["location"],
+                             c["weeks"], "已选遗漏课程", "-1")
         db.close()
 
     def crawl_school_id_name(self):
@@ -209,11 +244,15 @@ class CourseCrawler:
 
     # 爬全校所有学院的所有课程及参与课程的学生入库
     def crawl_save(self, season):
-        school_list = self.crawl_school_id_name()
-        for school_name, school_id in school_list.items():
-            # if school_id not in ("951", "963", "964", "945"):
-            self.crawl_save_courses(school_id, school_name, season)
-            self.crawl_save_students_info(school_id)
+        # school_list = self.crawl_school_id_name()
+        # for school_name, school_id in school_list.items():
+        #     # if school_id not in ("951", "963", "964", "945"):
+        #     self.crawl_save_courses(school_id, school_name, season)
+        #     self.crawl_save_students_info(school_id)
+
+        #补充已选的课程
+        self.crawl_save_courses_selected(season)
+        self.crawl_save_students_info("-1")
 
     def select_course_line(self, line, interval):
         match_ob = re.match("(.*):(.*)", line)
@@ -271,13 +310,18 @@ class CourseCrawler:
             t.join()
 
 if __name__ == "__main__":
-    courses_crawler = CourseCrawler("wychengpublic@163.com", "450331199402040036")
-    # 先进入选课系统app
-    courses_crawler.app_select()
-    courses_crawler.select_courses_conf(interval=0.5)
+    # # 爬取所有课程及选课学生信息
+    # courses_crawler = CourseCrawler("wychengpublic@163.com", "***")
+    # courses_crawler.crawl_save("春季")
 
+    # # 按配置文件conf抢课
+    # courses_crawler.app_select() # 先进入选课系统app
+    # courses_crawler.select_courses_conf(interval=0.5)
+
+    # # 输出某学生课表
     # db = CoursesDB()
-    # db.get_courses_visited(u"王雨城")
+    # db.get_courses_visited(u"栾世杰")
 
+    pass
 
 
