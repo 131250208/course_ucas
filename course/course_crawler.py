@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 import time, threading
 import requests
-import json
+from course import settings
 from bs4 import BeautifulSoup
 import re
 from course.course_db import CoursesDB
@@ -29,7 +29,7 @@ class CourseCrawler:
 
         soup = BeautifulSoup(res.text, "lxml")
         div = soup.select("div#main-content")
-        jwxk = div[0].select("a")[0]['href']
+        jwxk = div[0].select("h4 > a")[0]['href']
         self.session.get(jwxk)
 
         res = self.session.get("http://jwxk.ucas.ac.cn/courseManage/main")
@@ -269,7 +269,7 @@ class CourseCrawler:
         open_test = 0
         while True:
             course_map = self.get_course_fast(school_id)
-            if len(course_map) != 0: break
+            if len(course_map) != 0: break # 选课开放，跳出循环
             open_test += 1
             print("%d 课程网站上 %s 没有显示可选课程，选课可能还未开放...循环尝试中" % (open_test, match_ob.group(1)))
             time.sleep(interval)
@@ -310,17 +310,19 @@ class CourseCrawler:
             t.join()
 
 if __name__ == "__main__":
+
+    courses_crawler = CourseCrawler(settings.USER_NAME, settings.PASSWORD)
+
     # # 爬取所有课程及选课学生信息
-    # courses_crawler = CourseCrawler("wychengpublic@163.com", "***")
     # courses_crawler.crawl_save("春季")
 
-    # # 按配置文件conf抢课
-    # courses_crawler.app_select() # 先进入选课系统app
-    # courses_crawler.select_courses_conf(interval=0.5)
+    # 按配置文件conf抢课
+    courses_crawler.app_select() # 先进入选课系统app
+    courses_crawler.select_courses_conf(interval=0.5)
 
     # # 输出某学生课表
     # db = CoursesDB()
-    # db.get_courses_visited(u"栾世杰")
+    # db.get_courses_visited(u"小张")
 
     pass
 
