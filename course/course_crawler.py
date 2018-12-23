@@ -128,7 +128,6 @@ class CourseCrawler:
             course_map[course_code] = course_id
         return course_map
 
-
     def add_course(self, course_id):
         res = self.session.get("http://jwxk.ucas.ac.cn/courseManage/addCourseSite.json?courseId=%s" % (course_id))
         if "失败" in res.text:
@@ -188,21 +187,29 @@ class CourseCrawler:
 
         course_list = self.get_courses(school_id)
 
-        db = CoursesDB()
+        # db = CoursesDB()
         for c in course_list:
-            db.insert_course(c["course_name"], c["course_id"], c["course_code"], season, c["time"], c["location"], c["weeks"], school_name, school_id)
-        db.close()
+            c["season"] = season
+            c["school_name"] = school_name
+            c["school_id"] = school_id
+            # db.insert_course(c["course_name"], c["course_id"], c["course_code"], season, c["time"], c["location"], c["weeks"], school_name, school_id)
+        # db.close()
+        return course_list
 
     def crawl_save_courses_selected(self, season):
         self.app_select()
 
         course_list = self.get_courses_selected()
 
-        db = CoursesDB()
+        # db = CoursesDB()
         for c in course_list:
-            db.insert_course(c["course_name"], c["course_id"], c["course_code"], season, c["time"], c["location"],
-                             c["weeks"], "已选遗漏课程", "-1")
-        db.close()
+            c["season"] = season
+            c["school_name"] = "已选课程"
+            c["school_id"] = "-1"
+            # db.insert_course(c["course_name"], c["course_id"], c["course_code"], season, c["time"], c["location"],
+            #                  c["weeks"], "已选课程", "-1")
+        # db.close()
+        return course_list
 
     def crawl_school_id_name(self):
         self.app_select()
@@ -244,15 +251,17 @@ class CourseCrawler:
 
     # 爬全校所有学院的所有课程及参与课程的学生入库
     def crawl_save(self, season):
-        # school_list = self.crawl_school_id_name()
-        # for school_name, school_id in school_list.items():
-        #     # if school_id not in ("951", "963", "964", "945"):
-        #     self.crawl_save_courses(school_id, school_name, season)
-        #     self.crawl_save_students_info(school_id)
+        school_list = self.crawl_school_id_name()
+        course_info_list = []
+        for school_name, school_id in school_list.items():
+            # if school_id not in ("951", "963", "964", "945"):
+            course_info_list.extend(self.crawl_save_courses(school_id, school_name, season))
+            # self.crawl_save_students_info(school_id)
 
-        #补充已选的课程
-        self.crawl_save_courses_selected(season)
-        self.crawl_save_students_info("-1")
+        # 补充已选的课程
+        course_info_list.extend(self.crawl_save_courses_selected(season))
+        # self.crawl_save_students_info("-1")
+        return course_info_list
 
     def select_course_line(self, line, interval):
         match_ob = re.match("(.*):(.*)", line)
@@ -295,6 +304,7 @@ class CourseCrawler:
             retry_test += 1
             print("%d 对 %s 的未选中课程进行重新尝试..." % (retry_test, match_ob.group(1)))
             time.sleep(interval)
+
     # 按配置文件的配置信息进行抢课
     def select_courses_conf(self, interval = 0.0):
         # 解析配置文件,多线程循环抢课
@@ -313,12 +323,12 @@ if __name__ == "__main__":
 
     courses_crawler = CourseCrawler(settings.USER_NAME, settings.PASSWORD)
 
-    # # 爬取所有课程及选课学生信息
-    # courses_crawler.crawl_save("春季")
+    # 爬取所有课程及选课学生信息
+    courses_crawler.crawl_save("春季")
 
     # 按配置文件conf抢课
-    courses_crawler.app_select() # 先进入选课系统app
-    courses_crawler.select_courses_conf(interval=0.5)
+    # courses_crawler.app_select() # 先进入选课系统app
+    # courses_crawler.select_courses_conf(interval=0.5)
 
     # # 输出某学生课表
     # db = CoursesDB()
